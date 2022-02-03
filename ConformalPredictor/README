@@ -1,5 +1,0 @@
-# Conformal Predictor
-
-Implementation of a conformal predictor based on the work "A tutorial on conformal prediction" - Gleen Shafer and Vladimir Vovk.
-
-The dataset.csv contains the dataset used in the paper.
