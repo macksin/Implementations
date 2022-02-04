@@ -34,6 +34,11 @@ def nearest_neighbor_distances(vector, label, value_index, h):
 sepal_length, labels = np.loadtxt('dataset.csv', dtype='float,object', 
 	delimiter=',', usecols=(0, 1), unpack=True, skiprows=1)
 
+cats, counts = np.unique(labels, return_counts=True)
+print("Unique values: ", cats)
+print("Counts: ", counts)
+print("")
+
 # FOR A NEW NUMBER = 6.8 AS A SETOSA:
 sepal_length_2 = np.append(sepal_length, 6.8)
 labels_2 = np.append(labels, 's')
@@ -43,7 +48,6 @@ for index, value in enumerate(sepal_length_2):
 	value = nearest_neighbor_distances(sepal_length_2,
 		labels_2, index, labels_2[index])
 	
-	print(f"z_{index+1} = {round(value, 2)}")
 	H_setosa.append(value)
 H_setosa = np.array(H_setosa)
 
@@ -54,9 +58,14 @@ H_versicolor = []
 for index, value in enumerate(sepal_length_2):
 	value = nearest_neighbor_distances(sepal_length_2,
 		labels_2, index, labels_2[index])
-	print(f"z_{index+1} = {round(value, 2)}")
 	H_versicolor.append(value)
 H_versicolor = np.array(H_versicolor)
+
+
+print("Index Setosa Versicolor")
+print(np.vstack((np.array(range(len(H_setosa))) + 1, H_setosa, H_versicolor)).T.round(2))
+
+print("")
 
 # PROBABILITY
 ## SETOSA
