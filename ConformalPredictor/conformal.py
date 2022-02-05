@@ -78,9 +78,10 @@ print(np.vstack((np.array(range(len(H_setosa))) + 1, H_setosa, H_versicolor)).T.
 print("")
 
 # PROBABILITY
-## SETOSA
+# -- Versicolor
 x = len(H_versicolor[H_versicolor >= H_versicolor[-1]])/len(H_setosa)
 print("p(ponto_novo, versicolor) = ", x)
 
+# -- Setosa
 x = len(H_setosa[H_setosa >= H_setosa[-1]])/len(H_setosa)
 print("p(ponto_novo, setosa) = ", x)
