@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
 from typing import Optional
 from scipy.special import kl_div
 
@@ -16,8 +17,9 @@ def generate_pdf(rs: np.random.RandomState, change: Optional[bool] = False) -> n
     return X
 
 X = generate_pdf(rg)
+X_t = StandardScaler().fit_transform(X)
 
-plt.plot(X)
+plt.scatter(X_t[:, 0], X_t[:, 1])
 plt.show()
 
 aic = []
@@ -27,7 +29,8 @@ for n_components in n_components_range:
 
     gmm = GaussianMixture(n_components=n_components)
 
-    gmm.fit(X)
+    X_t = StandardScaler().fit_transform(X)
+    gmm.fit(X_t)
 
     bic.append(gmm.bic(X))
     aic.append(gmm.aic(X))
@@ -44,7 +47,10 @@ def get_cov(mixture_model: GaussianMixture) -> np.array:
     # I have applied some transformations for the KL part
     # not zero = +1e-16
     # not negative = sqrt(x**2)
+    # covs = np.array([np.cov(x) for x in mixture_model.covariances_])
+    # return np.sqrt((covs.ravel() + 1e-16) ** 2)
     return np.sqrt((mixture_model.covariances_.ravel() + 1e-16) ** 2)
+
 
 #            x   x
 # i =  0 1 2 3 4 5 6 7 8 9
@@ -61,7 +67,8 @@ for i in pdfs_range:
     X = generate_pdf(rg)
     if i == 5 or i == 3:
         X = generate_pdf(rg, change=True)
-    gmm.fit(X)
+    X_t = StandardScaler().fit_transform(X)
+    gmm.fit(X_t)
     distributions.append(get_cov(gmm))
 
 # How to transform the Covariance Matrices into
