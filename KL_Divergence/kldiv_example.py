@@ -7,13 +7,18 @@ from scipy.special import kl_div
 
 rg = np.random.RandomState(42)
 
-def generate_pdf(rs: np.random.RandomState, change: Optional[bool] = False) -> np.array:
-    p1 = rg.normal(0, 0.5, 100)
+def generate_pdf(
+    rs: np.random.RandomState,
+    change: Optional[bool] = False
+) -> np.array:
+    n = 150
+    p1 = rs.normal(0, 0.5, n)
     if change:
-        p2 = rg.binomial(1.1, 0.7, 100)
+        p2 = rs.binomial(1.1, 0.7, n)
     else:
-        p2 = rg.exponential(0.1, 100)
-    X = np.stack((p1, p2), axis=1)
+        p2 = rs.exponential(0.1, n)
+    p3 = rs.normal(10, 11.5, n)
+    X = np.stack((p1, p2, p3), axis=1)
     return X
 
 X = generate_pdf(rg)
@@ -24,7 +29,7 @@ plt.show()
 
 aic = []
 bic = []
-n_components_range = range(1, 20)
+n_components_range = range(1, 10)
 for n_components in n_components_range:
 
     gmm = GaussianMixture(n_components=n_components)
@@ -35,12 +40,16 @@ for n_components in n_components_range:
     bic.append(gmm.bic(X))
     aic.append(gmm.aic(X))
 
-plt.plot(n_components_range, bic, label='bic')
-plt.plot(n_components_range, aic, label='aic')
+fig, ax1 = plt.subplots()
+ax1.plot(n_components_range, bic, label='bic', color='red', marker='x')
+plt.legend()
+ax2 = ax1.twinx()
+ax2.plot(n_components_range, aic, label='aic', color='blue', marker='x')
 plt.legend()
 plt.show()
 
-N_COMPONENTS=3
+
+N_COMPONENTS=2
 gmm = GaussianMixture(n_components=N_COMPONENTS)
 
 def get_cov(mixture_model: GaussianMixture) -> np.array:
@@ -50,7 +59,6 @@ def get_cov(mixture_model: GaussianMixture) -> np.array:
     # covs = np.array([np.cov(x) for x in mixture_model.covariances_])
     # return np.sqrt((covs.ravel() + 1e-16) ** 2)
     return np.sqrt((mixture_model.covariances_.ravel() + 1e-16) ** 2)
-
 
 #            x   x
 # i =  0 1 2 3 4 5 6 7 8 9
