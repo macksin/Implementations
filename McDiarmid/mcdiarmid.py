@@ -1,6 +1,6 @@
 import numpy as np
 import logging
-
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class MDDM:
         self.__weights()
         self.epslon = self.__calculate_epslon()
         logger.info(f"Epslon: {self.epslon}")
-        self.win = []
+        self.win: List[float] = []
         self.mean_t = 0
         self.mean_m = 0
 
