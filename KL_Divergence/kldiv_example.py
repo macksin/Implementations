@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 from typing import Optional
-from scipy.special import kl_div
+from scipy.special import rel_entr
 
 rg = np.random.RandomState(42)
 
@@ -11,7 +11,7 @@ def generate_pdf(
     rs: np.random.RandomState,
     change: Optional[bool] = False
 ) -> np.array:
-    n = 150
+    n = 300
     p1 = rs.normal(0, 0.5, n)
     if change:
         p2 = rs.binomial(1.1, 0.7, n)
@@ -29,7 +29,7 @@ plt.show()
 
 aic = []
 bic = []
-n_components_range = range(1, 10)
+n_components_range = range(1, 16)
 for n_components in n_components_range:
 
     gmm = GaussianMixture(n_components=n_components)
@@ -37,8 +37,8 @@ for n_components in n_components_range:
     X_t = StandardScaler().fit_transform(X)
     gmm.fit(X_t)
 
-    bic.append(gmm.bic(X))
-    aic.append(gmm.aic(X))
+    bic.append(gmm.bic(X_t))
+    aic.append(gmm.aic(X_t))
 
 fig, ax1 = plt.subplots()
 ax1.plot(n_components_range, bic, label='bic', color='red', marker='x')
@@ -49,16 +49,20 @@ plt.legend()
 plt.show()
 
 
-N_COMPONENTS=2
+N_COMPONENTS=np.argmin(bic) + 1
 gmm = GaussianMixture(n_components=N_COMPONENTS)
 
 def get_cov(mixture_model: GaussianMixture) -> np.array:
-    # I have applied some transformations for the KL part
-    # not zero = +1e-16
-    # not negative = sqrt(x**2)
-    # covs = np.array([np.cov(x) for x in mixture_model.covariances_])
-    # return np.sqrt((covs.ravel() + 1e-16) ** 2)
-    return np.sqrt((mixture_model.covariances_.ravel() + 1e-16) ** 2)
+    covariance_matrices = []
+    for cov in mixture_model.covariances_:
+        a_means = np.mean(cov, axis=0)
+        a_centr = cov - a_means
+        a_norms = np.linalg.norm(a_centr, axis=0)
+        a_std = a_centr / a_norms
+        covariance_matrices.append(a_std)
+    covariance_matrices = np.array(covariance_matrices)
+    print(covariance_matrices)
+    return (covariance_matrices.ravel() + 1e-19) ** 2
 
 #            x   x
 # i =  0 1 2 3 4 5 6 7 8 9
@@ -73,7 +77,7 @@ pdfs_range = range(20)
 distributions = []
 for i in pdfs_range:
     X = generate_pdf(rg)
-    if i == 5 or i == 3:
+    if i == 5 or i == 6 or i == 7:
         X = generate_pdf(rg, change=True)
     X_t = StandardScaler().fit_transform(X)
     gmm.fit(X_t)
@@ -82,7 +86,7 @@ for i in pdfs_range:
 # How to transform the Covariance Matrices into
 # Probability functions? AKA Removing the negative
 # Part?
-entropy = [sum(kl_div(d2, d1)) for d1, d2 in zip(distributions[:-1], distributions[1:])]
+entropy = [sum(rel_entr(d2, d1)) for d1, d2 in zip(distributions[:-1], distributions[1:])]
 
 plt.title("KL divergence between COV Matrices of each PDF")
 plt.plot(range(len(entropy)), entropy)
