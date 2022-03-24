@@ -9,9 +9,9 @@ rg = np.random.RandomState(99)
 
 settings = dict(
     max_iter = 500,
-    tol = 1e-2,
+    tol = 1e-6,
     covariance_type = 'full',
-    reg_covar = 1e-16,
+    reg_covar = 1,
     n_init = 3,
 )
 
@@ -19,12 +19,12 @@ def generate_pdf(
     rs: np.random.RandomState,
     change: Optional[bool] = False
 ) -> np.array:
-    n = 1000
-    p1 = rs.normal(0, 1.1, n)
+    n = 2000
+    p1 = rs.normal(0, 0.3, n) * 2
     if change:
         p2 = rs.binomial(10, .3, n)
     else:
-        p2 = rs.exponential(0.1, n)
+        p2 = rs.exponential(0.3, n)
     p3 = rs.normal(10, 11.5, n)
     X = np.stack((p1, p2, p3), axis=1)
     X = np.stack((p1, p2), axis=1)
@@ -106,11 +106,13 @@ compare[:, 2] = rel_entr(np.sqrt((compare[:, 0] + 1e-19) **2), np.sqrt((compare[
 print("Compare: ", compare)
 
 def relative_entropy_sum(d2, d1):
-    d2 = np.sqrt((d2 + 1-19) ** 2)
-    d1 = np.sqrt((d1 + 1-19) ** 2)
-    r = rel_entr(d2, d1)
-    r = np.sqrt(r**2)
-    return sum(r)
+    # d2 = np.sqrt((d2 + 1-19) ** 2)
+    # d1 = np.sqrt((d1 + 1-19) ** 2)
+    # r = rel_entr(d2, d1)
+    # r = np.sqrt(r**2)
+    d2 = np.array(d2) + 1e-19
+    d1 = np.array(d1) + 1e-19
+    return sum(np.sqrt((d2 - d1)**2)) 
 
 entropy = [relative_entropy_sum(d2, d1) for d1, d2 in \
     zip(distributions[:-1], distributions[1:])]
