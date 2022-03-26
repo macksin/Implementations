@@ -5,16 +5,17 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from typing import Optional
 from scipy.special import rel_entr, kl_div
 from sklearn.base import clone
+from sklearn.neighbors import NearestNeighbors
 
 rg = np.random.RandomState(99)
 
 settings = dict(
     max_iter = 1000,
-    tol = 1e-4,
+    tol = 1e-3,
     covariance_type = 'full',
-    reg_covar = 1e-1,
-    n_init = 3,
-    random_state = rg
+    reg_covar = 1e-5,
+    n_init = 10,
+    # random_state = rg
 )
 
 def generate_pdf(
@@ -25,9 +26,7 @@ def generate_pdf(
     p1 = rs.normal(0, 0.3, n) * 2
     p2 = rs.exponential(0.3, n)
     if change:
-        p2 = p2 + rs.randint(0, 100, size=n)
-    # p3 = rs.normal(10, 11.5, n)
-    # X = np.stack((p1, p2, p3), axis=1)
+        p2 = p2 + rs.randint(0, 1, size=n)
     X = np.stack((p1, p2), axis=1)
     return X
 
@@ -47,17 +46,16 @@ plt.show()
 # ==================================================================
 
 X = generate_pdf(rg)
-X_t = StandardScaler().fit_transform(X)
+# X_t = StandardScaler().fit_transform(X)
 
 aic = []
 bic = []
 n_components_range = range(1, 11)
 for n_components in n_components_range:
     gmm = GaussianMixture(n_components=n_components, **settings)
-    gmm.fit(X_t)
-    bic.append(gmm.bic(X_t))
-    aic.append(gmm.aic(X_t))
-
+    gmm.fit(X)
+    bic.append(gmm.bic(X))
+    aic.append(gmm.aic(X))
 
 fig, ax1 = plt.subplots()
 ax1.plot(n_components_range, bic, label='bic', color='red', marker='x')
@@ -67,23 +65,33 @@ ax2.plot(n_components_range, aic, label='aic', color='blue', marker='x')
 plt.legend()
 plt.show()
 
-
 N_COMPONENTS=np.argmin(bic) + 1
 
-def get_cov(mixture_model: GaussianMixture) -> np.array:
-    # covs = np.sqrt((mixture_model.covariances_.ravel() + 1e-19) ** 2)
-    covs = mixture_model.covariances_.ravel()
-    # covs = mixture_model.means_.ravel()
-    covs = np.abs(covs)
-    # return np.sqrt((covs + 1e-19) ** 2)
-    return covs
+def get_order(old: GaussianMixture, new: GaussianMixture) -> list:
+    nn = NearestNeighbors(n_neighbors=2)
+    nn.fit(old.means_)
+    means_new = new.means_
+    comparison_ids = []
+    for new_id, mean in enumerate(means_new):
+        old_id = nn.kneighbors(mean.reshape(1, -1), return_distance=False)[0][1]
+        comparison_ids.append((old_id, new_id))
+        # TODO We need to remove the alredy serached id's
+        # because with the same list the problem is too
+        # easy
+    return comparison_ids
 
-#            x   x
-# i =  0 1 2 3 4 5 6 7 8 9
-# d1   0 1 2 3 4 5 6 7 8
-# d2   1 2 3 4 5 6 7 8 9
-# Hs   0 1 2 3 4 5 6 7 8
-# OK!
+def get_cov(old: GaussianMixture, new: GaussianMixture) -> np.array:
+    order = get_order(old, new)
+    cov_old, cov_new = old.covariances_, new.covariances_
+    cov_old_, cov_new_ = [], []
+    for id_old, id_new in order:
+        cov_old_.append(cov_old[id_old])
+        cov_new_.append(cov_new[id_new])
+    FUNC = lambda x: np.sqrt((np.array(x).ravel() ** 2))
+    cov_old_ = FUNC(cov_old_)
+    cov_new_ = FUNC(cov_new_)
+    entropy = rel_entr(cov_new_, cov_old_)
+    return entropy
 
 # Now, we will have some pdfs
 pdfs_range = range(11)
@@ -92,6 +100,7 @@ distributions = []
 points = [5, 6, 7, 9]
 
 compare = []
+gmms = []
 for i in pdfs_range:
     gmm = GaussianMixture(n_components=N_COMPONENTS, **settings)
     if i in points:
@@ -100,41 +109,11 @@ for i in pdfs_range:
     else:
         X = generate_pdf(rg)
     X_t = StandardScaler().fit_transform(X)
-    gmm.fit(X_t)
-    if i == 4 or i == 5 or i == 6:
-        compare.append(gmm.covariances_.ravel())
-    distributions.append(get_cov(gmm))
+    gmm.fit(X)
+    gmms.append(gmm)
 
-# =============== print comparison
-compare = np.stack(compare, axis=1)
-compare[:, 2] = rel_entr(np.sqrt((compare[:, 0] + 1e-19) **2), np.sqrt((compare[:, 1] + 1e-19) **2))
-print("Compare: ", compare)
-
-def relative_entropy_sum(d2, d1):
-    # d2 = np.sqrt((d2 + 1-19) ** 2)
-    # d1 = np.sqrt((d1 + 1-19) ** 2)
-    r = rel_entr(d2, d1)
-    # r = np.sqrt(r**2)
-    # d2 = np.array(d2) + 1e-19
-    # d1 = np.array(d1) + 1e-19
-    # var = sum(np.sqrt((d2 - d1)**2))
-    return sum(r)
-
-def relative_entropy_alternative(d2, d1):
-    entropy = []
-    for i in range(len(d1)):
-        _d1, _d2 = abs(d1[i]), abs(d2[i])
-        less = min([_d1, _d2])
-        more = max([_d1, _d2])
-        entropy.append(rel_entr(more, less))
-    entropy = np.array(entropy)
-    entropy = np.sqrt(entropy ** 2)
-    return sum(entropy)
-
-
-
-entropy = [relative_entropy_sum(d2, d1) for d1, d2 in \
-    zip(distributions[:-1], distributions[1:])]
+entropy = [sum(np.abs(get_cov(d2, d1))) for d1, d2 in \
+    zip(gmms[:-1], gmms[1:])]
 
 plt.title("KL divergence between COV Matrices of each PDF")
 plt.plot(range(len(entropy)), entropy, marker='x')
@@ -142,3 +121,18 @@ for p in points:
     plt.axvline(p)
 plt.legend()
 plt.show()
+
+## Testing
+
+
+X = generate_pdf(rg)
+X_t = StandardScaler().fit_transform(X)
+gmm_old = GaussianMixture(n_components=3, **settings)
+gmm_old.fit(X_t)
+
+X = generate_pdf(rg, change=True)
+X_t = StandardScaler().fit_transform(X)
+gmm_new = GaussianMixture(n_components=3, **settings)
+gmm_new.fit(X_t)
+
+print(get_order(gmm_old, gmm_new))
