@@ -11,10 +11,10 @@ rg = np.random.RandomState(99)
 
 settings = dict(
     max_iter = 1000,
-    tol = 1e-3,
+    tol = 1e-4,
     covariance_type = 'full',
-    reg_covar = 1e-5,
-    n_init = 10,
+    reg_covar = 1e-6,
+    n_init = 3,
     # random_state = rg
 )
 
@@ -22,11 +22,12 @@ def generate_pdf(
     rs: np.random.RandomState,
     change: Optional[bool] = False
 ) -> np.array:
-    n = 1000
+    n = 500
     p1 = rs.normal(0, 0.3, n) * 2
     p2 = rs.exponential(0.3, n)
     if change:
-        p2 = p2 + rs.randint(0, 1, size=n)
+        p1 = rs.randint(0, 1000, size=n)/1000
+        p2 = p2 + rs.randint(0, 1000, size=n)/1000 
     X = np.stack((p1, p2), axis=1)
     return X
 
@@ -46,7 +47,7 @@ plt.show()
 # ==================================================================
 
 X = generate_pdf(rg)
-# X_t = StandardScaler().fit_transform(X)
+X = StandardScaler().fit_transform(X)
 
 aic = []
 bic = []
@@ -68,19 +69,28 @@ plt.show()
 N_COMPONENTS=np.argmin(bic) + 1
 
 def get_order(old: GaussianMixture, new: GaussianMixture) -> list:
-    nn = NearestNeighbors(n_neighbors=2)
+    nn = NearestNeighbors(n_neighbors=len(old.means_))
     nn.fit(old.means_)
-    means_new = new.means_
     comparison_ids = []
-    for new_id, mean in enumerate(means_new):
-        old_id = nn.kneighbors(mean.reshape(1, -1), return_distance=False)[0][1]
-        comparison_ids.append((old_id, new_id))
-        # TODO We need to remove the alredy serached id's
-        # because with the same list the problem is too
-        # easy
+
+    kn = nn.kneighbors(
+        new.means_,
+        return_distance=False,
+        n_neighbors=len(new.means_)
+    )
+
+    seen = []
+    for i, n_points in enumerate(kn):
+        for p in n_points:
+            if p in seen:
+                continue
+            else:
+                comparison_ids.append((p, i))
+                seen.append(p)
+                break
     return comparison_ids
 
-def get_cov(old: GaussianMixture, new: GaussianMixture) -> np.array:
+def get_entropy(old: GaussianMixture, new: GaussianMixture) -> np.array:
     order = get_order(old, new)
     cov_old, cov_new = old.covariances_, new.covariances_
     cov_old_, cov_new_ = [], []
@@ -91,14 +101,13 @@ def get_cov(old: GaussianMixture, new: GaussianMixture) -> np.array:
     cov_old_ = FUNC(cov_old_)
     cov_new_ = FUNC(cov_new_)
     entropy = rel_entr(cov_new_, cov_old_)
+    entropy = cov_new_ - cov_old_
     return entropy
 
 # Now, we will have some pdfs
 pdfs_range = range(11)
-
 distributions = []
 points = [5, 6, 7, 9]
-
 compare = []
 gmms = []
 for i in pdfs_range:
@@ -108,31 +117,54 @@ for i in pdfs_range:
         X = generate_pdf(rg, change=True)
     else:
         X = generate_pdf(rg)
-    X_t = StandardScaler().fit_transform(X)
     gmm.fit(X)
     gmms.append(gmm)
 
-entropy = [sum(np.abs(get_cov(d2, d1))) for d1, d2 in \
+entropy = [sum(np.abs(get_entropy(d2, d1))) for d1, d2 in \
     zip(gmms[:-1], gmms[1:])]
+
+plt.title("KL divergence between COV Matrices of each PDF")
+plt.plot(range(len(entropy)), np.log(entropy), marker='x')
+for p in points:
+    plt.axvline(p)
+plt.ylabel("Log_e(Sum(Hs(New, Old)))")
+plt.xlabel("Periods")
+plt.legend()
+plt.show()
 
 plt.title("KL divergence between COV Matrices of each PDF")
 plt.plot(range(len(entropy)), entropy, marker='x')
 for p in points:
     plt.axvline(p)
+plt.ylabel("Sum(Hs(New, Old))")
+plt.xlabel("Periods")
 plt.legend()
 plt.show()
-
 ## Testing
 
+def generate_pdf(
+    rs: np.random.RandomState,
+    change: Optional[bool] = False
+) -> np.array:
+    n = 1000
+    p1 = rs.normal(0, 0.3, n) * 2
+    p2 = rs.exponential(0.3, n)
+    if change:
+        p1 = rs.randint(0, 100, size=n)
+        p2 = rs.randint(0, 100, size=n)
+    X = np.stack((p1, p2), axis=1)
+    return X
 
 X = generate_pdf(rg)
-X_t = StandardScaler().fit_transform(X)
-gmm_old = GaussianMixture(n_components=3, **settings)
-gmm_old.fit(X_t)
+gmm_old = GaussianMixture(n_components=8, **settings)
+gmm_old.fit(X)
+
+X = generate_pdf(rg)
+gmm_old2 = GaussianMixture(n_components=8, **settings)
+gmm_old2.fit(X)
 
 X = generate_pdf(rg, change=True)
-X_t = StandardScaler().fit_transform(X)
-gmm_new = GaussianMixture(n_components=3, **settings)
-gmm_new.fit(X_t)
+gmm_new = GaussianMixture(n_components=8, **settings)
+gmm_new.fit(X)
 
 print(get_order(gmm_old, gmm_new))
