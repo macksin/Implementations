@@ -6,6 +6,8 @@ from typing import Optional
 from scipy.special import rel_entr, kl_div
 from sklearn.base import clone
 from sklearn.neighbors import NearestNeighbors
+from sklearn.covariance import EmpiricalCovariance, MinCovDet
+
 
 rg = np.random.RandomState(99)
 
@@ -90,6 +92,14 @@ def get_order(old: GaussianMixture, new: GaussianMixture) -> list:
                 break
     return comparison_ids
 
+
+def mahalanobis_diff(new_array: np.array, old_array: np.array) -> np.array:
+    emp_cov = EmpiricalCovariance(assume_centered=True)
+    emp_cov.fit(old_array.reshape(-1, 1))
+    distances = emp_cov.mahalanobis(new_array.reshape(-1, 1))
+    return distances
+
+
 def get_entropy(old: GaussianMixture, new: GaussianMixture) -> np.array:
     order = get_order(old, new)
     cov_old, cov_new = old.covariances_, new.covariances_
@@ -97,12 +107,13 @@ def get_entropy(old: GaussianMixture, new: GaussianMixture) -> np.array:
     for id_old, id_new in order:
         cov_old_.append(cov_old[id_old])
         cov_new_.append(cov_new[id_new])
-    FUNC = lambda x: np.sqrt((np.array(x).ravel() ** 2))
+    # FUNC = lambda x: np.sqrt((np.array(x).ravel() ** 2))
+    FUNC = lambda x: MinMaxScaler().fit_transform(np.array(x).ravel().reshape(-1, 1))
     cov_old_ = FUNC(cov_old_)
     cov_new_ = FUNC(cov_new_)
     entropy = rel_entr(cov_new_, cov_old_)
-    entropy = cov_new_ - cov_old_
-    return entropy
+    # entropy = cov_new_ - cov_old_
+    return mahalanobis_diff(cov_new_, cov_old_)
 
 # Now, we will have some pdfs
 pdfs_range = range(11)
@@ -168,3 +179,30 @@ gmm_new = GaussianMixture(n_components=8, **settings)
 gmm_new.fit(X)
 
 print(get_order(gmm_old, gmm_new))
+
+# Using the Empirical Cov Log Likehood
+X_ok_1 = generate_pdf(rg)
+X_ok_2 = generate_pdf(rg)
+X_nok_1 = generate_pdf(rg, True)
+X_nok_2 = generate_pdf(rg, True)
+X_ok_3 = generate_pdf(rg)
+
+pdfs = [X_ok_1, X_ok_2, X_nok_1, X_nok_2, X_ok_3]
+
+FUNC = lambda x: StandardScaler().fit_transform(x)
+FUNC = lambda x: MinMaxScaler((1e-2, 0.9999)).fit_transform(x)
+diff_pdfs = [(FUNC(dnew), FUNC(dold)) for dnew, dold in
+    zip(pdfs[1:], pdfs[:-1])]
+
+scores = []
+for pdf in diff_pdfs:
+    emp_cov = EmpiricalCovariance().fit(pdf[1])
+    scores.append(emp_cov.score(pdf[0]))
+
+plt.title("KL divergence between COV Matrices of each PDF")
+plt.plot(range(len(scores)), np.log(scores), marker='x')
+for p in [1,3]:
+    plt.axvline(p)
+plt.xlabel("Periods")
+plt.legend()
+plt.show()
