@@ -11,7 +11,7 @@ class Node:
         self.cut = cut
         self.block = block
         self.cuts = cuts
-        print(self)
+        self.results__ = []
         
     def insert(self, cuttoff, dim, block, cuttoffs):
         depth = self.depth + 1
@@ -29,61 +29,60 @@ class Node:
             self.rightNode = Node(data_right, dim=dim, depth=depth, cut=cuttoff, block=block, cuts=cuttoffs)
         elif (len(right_idx) > 0):
             self.rightNode.insert(cuttoff, dim, block=block, cuttoffs=cuttoffs)
-            
-def insert_block(tree):
-    if (tree.blockEnd == True) and (tree.leftNode is None) and (tree.rightNode is None):
-        block = (tree.block or 0) + 1
-        print(tree.data.shape)
-        cuttoffs = np.percentile(tree.data, q=50, axis=0)
-        tree.insert(cuttoffs[0], 0, block=block, cuttoffs=cuttoffs)
-        tree.insert(cuttoffs[1], 1, block=block, cuttoffs=cuttoffs)
-        markNodeEnds(tree)
-    else:
+
+    def __markNodeEnds(self, tree):
         if tree.leftNode:
-            insert_block(tree.leftNode)
+            if (tree.leftNode is None) and (tree.rightNode is None):
+                tree.blockEnd = True
+            else:
+                self.__markNodeEnds(tree.leftNode)
+                tree.blockEnd = False
         if tree.rightNode:
-            insert_block(tree.rightNode)
-        
-
-def getCutLevels(node, cutlist, max_level):
-    cutlist.append((node.dim, node.depth, node.cut, node.block, node.min_dim1, node.min_dim2, node.max_dim1, node.max_dim2))
-    if node.rightNode:
-        print('right')
-        getCutLevels(node.rightNode, cutlist, max_level)
-    if node.leftNode:
-        print('left')
-        getCutLevels(node.leftNode, cutlist, max_level)
-
-def clearCutLevels(cutlist):
-    cutlist = [t for t in (list(tuple(i) for i in cutlist)) if t[2] is not None]
-    cutlist.sort(key=lambda y: y[1])
-    return cutlist
-
-def markNodeEnds(tree):
-    if tree.leftNode:
-        if (tree.leftNode is None) and (tree.rightNode is None):
+            if (tree.leftNode is None) and (tree.rightNode is None):
+                tree.blockEnd = True
+            else:
+                self.__markNodeEnds(tree.rightNode)
+                tree.blockEnd = False
+        if tree.leftNode is None and tree.rightNode is None:
             tree.blockEnd = True
-        else:
-            markNodeEnds(tree.leftNode)
-            tree.blockEnd = False
-    if tree.rightNode:
-        if (tree.leftNode is None) and (tree.rightNode is None):
-            tree.blockEnd = True
-        else:
-            markNodeEnds(tree.rightNode)
-            tree.blockEnd = False
-    if tree.leftNode is None and tree.rightNode is None:
-        tree.blockEnd = True
 
-def countTerminalLeaves(tree):
-    count = 0
-    if tree.leftNode is None and tree.rightNode is None:
-        count += 1
-    if tree.leftNode:
-        count += countTerminalLeaves(tree.leftNode)
-    if tree.rightNode:
-        count += countTerminalLeaves(tree.rightNode)
-    return count
+    def __insert_block(self, tree):
+        if (tree.blockEnd == True) and (tree.leftNode is None) and (tree.rightNode is None):
+            block = (tree.block or 0) + 1
+            cuttoffs = np.percentile(tree.data, q=50, axis=0)
+            tree.insert(cuttoffs[0], 0, block=block, cuttoffs=cuttoffs)
+            tree.insert(cuttoffs[1], 1, block=block, cuttoffs=cuttoffs)
+        else:
+            if tree.leftNode:
+                self.__insert_block(tree.leftNode)
+            if tree.rightNode:
+                self.__insert_block(tree.rightNode)
+            
+
+    def __findNode(self, tree, list_of_results):
+
+        if (tree.leftNode is None and tree.rightNode is None):
+            return (tree.data, tree.cuts)
+
+        if tree.leftNode:
+            list_of_results.append(self.__findNode(tree.leftNode, list_of_results))
+        if tree.rightNode:
+            list_of_results.append(self.__findNode(tree.rightNode, list_of_results))
+
+    def __cleanResult(self, listOfResults):
+        Result = [e for e in listOfResults if e is not None]
+        return Result
+
+    def insert_block(self, tree=None):
+        if isinstance(tree, type(None)):
+            tree = self
+        self.__markNodeEnds(tree)
+        self.__insert_block(tree)
+        results = []
+        self.__findNode(tree, results)
+        results = self.__cleanResult(results)
+        self.results__.append(results)
+
 
 def countTerminalSamples(tree):
     count = 0
@@ -99,28 +98,13 @@ def countTerminalSamples(tree):
 import numpy as np
 
 rng = np.random.RandomState(42)
-X1 = np.hstack((rng.normal(-10, 1, 100), rng.normal(0, 1, 100)))
+X1 = np.hstack((rng.normal(-10, 2, 100), rng.normal(0, 2, 100)))
 X1 = np.append(X1, -10)
 X1 = np.append(X1, 0)
-X2 = np.hstack((rng.normal(0, 1, 100), rng.normal(10, 1, 100)))
+X2 = np.hstack((rng.normal(0, 2, 100), rng.normal(10, 2, 100)))
 X2 = np.append(X2, 10)
 X2 = np.append(X2, 0)
 X = np.c_[X1, X2]
-
-
-def findNode(tree: Node, list_of_results):
-
-    if (tree.leftNode is None and tree.rightNode is None):
-        return (tree.data, tree.cuts)
-
-    if tree.leftNode:
-        list_of_results.append(findNode(tree.leftNode, list_of_results))
-    if tree.rightNode:
-        list_of_results.append(findNode(tree.rightNode, list_of_results))
-
-def cleanResult(listOfResults):
-    Result = [e for e in listOfResults if e is not None]
-    return Result
 
 def plottingElements(listOfResults, exclude_list=None):
     cutoffList = [(cuts[1][0], cuts[1][1]) for cuts in listOfResults]
@@ -147,63 +131,40 @@ def plottingElements(listOfResults, exclude_list=None):
 
 tree = Node(X, 0, 0, cut=None, block=None)
 
-markNodeEnds(tree)
-insert_block(tree)
-markNodeEnds(tree)
+tree.insert_block()
+tree.insert_block()
+tree.insert_block()
+tree.insert_block()
 
-tree.blockEnd = False
-list_of_results = []
-findNode(tree, list_of_results)
-list_of_results = cleanResult(list_of_results)
-plot_data1 = plottingElements(list_of_results)
+plot_data1 = plottingElements(tree.results__[0])
+plot_data2 = plottingElements(tree.results__[1], plot_data1)
+plot_data3 = plottingElements(tree.results__[2], plot_data2)
+plot_data4 = plottingElements(tree.results__[3], plot_data3)
 
-# Round 2
-markNodeEnds(tree)
-insert_block(tree)
-markNodeEnds(tree)
+assert (X.shape[0] == countTerminalSamples(tree))
 
-tree.blockEnd = False
-list_of_results = []
-findNode(tree, list_of_results)
-list_of_results = cleanResult(list_of_results)
-plot_data2 = plottingElements(list_of_results, plot_data1)
-
-# Round 3
-markNodeEnds(tree)
-insert_block(tree)
-markNodeEnds(tree)
-
-tree.blockEnd = False
-list_of_results = []
-findNode(tree, list_of_results)
-list_of_results = cleanResult(list_of_results)
-plot_data3 = plottingElements(list_of_results, plot_data2)
-
+## 2D Plot
 import matplotlib.pyplot as plt
 
-plt.scatter(X[:, 0], X[:, 1])
+plt.scatter(X[:, 0], X[:, 1], alpha=0.3, marker='o')
+plt.xlabel("X[:, 0]")
+plt.ylabel("X[:, 1]")
 
-colors = ['r', 'purple' ,'g', 'black']
-for cuts, data in plot_data1.items():
-    c = 'r'
-    cut_x = cuts[0]
-    cut_y = cuts[1]
-    plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=c)
-    plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=c, label='depth_1')
+def inline_plot(plot_data, color, label):
+    lw = 0.7
+    for i, (cuts, data) in enumerate(plot_data.items()):
+        cut_x = cuts[0]
+        cut_y = cuts[1]
+        plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=color, lw=lw)
+        if i == 0:
+            plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=color, label='depth_{}'.format(label), lw=lw)
+        else:
+            plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=color, lw=lw)
 
-for cuts, data in plot_data2.items():
-    c = 'g'
-    cut_x = cuts[0]
-    cut_y = cuts[1]
-    plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=c)
-    plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=c, label='depth_2')
-
-for cuts, data in plot_data3.items():
-    c = 'b'
-    cut_x = cuts[0]
-    cut_y = cuts[1]
-    plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=c)
-    plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=c, label='depth_3')
+inline_plot(plot_data1, color='blue', label=1)
+inline_plot(plot_data2, color='red', label=2)
+inline_plot(plot_data3, color='green', label=3)
+inline_plot(plot_data4, color='purple', label=4)
 
 plt.legend()
 plt.show()
