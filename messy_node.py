@@ -84,7 +84,7 @@ def markNodeEnds(tree):
         elif (tree.leftNode is None) and (tree.rightNode is None):
             tree.blockEnd = True
         else:
-            markNodeEnds(tree.leftNode)
+            markNodeEnds(tree.rightNode)
             tree.blockEnd = False
     if tree.leftNode is None and tree.rightNode is None:
         tree.blockEnd = True
@@ -113,8 +113,12 @@ def countTerminalSamples(tree):
 import numpy as np
 
 rng = np.random.RandomState(42)
-X1 = rng.normal(-100, 10, 100)
-X2 = rng.normal(20, 90, 100)
+X1 = np.hstack((rng.normal(-10, 1, 100), rng.normal(0, 1, 100)))
+X1 = np.append(X1, -10)
+X1 = np.append(X1, 0)
+X2 = np.hstack((rng.normal(0, 1, 100), rng.normal(10, 1, 100)))
+X2 = np.append(X2, 10)
+X2 = np.append(X2, 0)
 X = np.c_[X1, X2]
 
 
@@ -188,6 +192,17 @@ findNode(tree, list_of_results)
 list_of_results = cleanResult(list_of_results)
 plot_data2 = plottingElements(list_of_results, plot_data1)
 
+# Round 3
+markNodeEnds(tree)
+insert_block(tree)
+markNodeEnds(tree)
+
+tree.blockEnd = False
+list_of_results = []
+findNode(tree, list_of_results)
+list_of_results = cleanResult(list_of_results)
+plot_data3 = plottingElements(list_of_results, plot_data2)
+
 import matplotlib.pyplot as plt
 
 plt.scatter(X[:, 0], X[:, 1])
@@ -206,6 +221,13 @@ for cuts, data in plot_data2.items():
     cut_y = cuts[1]
     plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=c)
     plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=c, label='depth_2')
+
+for cuts, data in plot_data3.items():
+    c = 'b'
+    cut_x = cuts[0]
+    cut_y = cuts[1]
+    plt.plot([cut_x, cut_x], [data[:, 1].min(), data[:, 1].max()], c=c)
+    plt.plot([data[:, 0].min(), data[:, 0].max()], [cut_y, cut_y], c=c, label='depth_3')
 
 plt.legend()
 plt.show()
