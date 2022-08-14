@@ -13,11 +13,7 @@ class Node:
         self.cuts = cuts
         print(self)
         
-    # def __repr__(self):
-    #     return "Nozin block={} dim={} depth={} cut={}".format(self.block, self.dim, self.depth, self.cut)
-        
     def insert(self, cuttoff, dim, block, cuttoffs):
-        k = 5
         depth = self.depth + 1
         X = self.data
         left_idx, = np.where(X[:, dim] <= cuttoff)
@@ -65,23 +61,13 @@ def clearCutLevels(cutlist):
 
 def markNodeEnds(tree):
     if tree.leftNode:
-        currentBlock = tree.block or -1
-        childBlock = tree.leftNode.block
-        if (currentBlock < childBlock):
-            tree.blockEnd = True
-            markNodeEnds(tree.leftNode)
-        elif (tree.leftNode is None) and (tree.rightNode is None):
+        if (tree.leftNode is None) and (tree.rightNode is None):
             tree.blockEnd = True
         else:
             markNodeEnds(tree.leftNode)
             tree.blockEnd = False
     if tree.rightNode:
-        currentBlock = tree.block or -1
-        childBlock = tree.rightNode.block
-        if (currentBlock < childBlock):
-            tree.blockEnd = True
-            markNodeEnds(tree.rightNode)
-        elif (tree.leftNode is None) and (tree.rightNode is None):
+        if (tree.leftNode is None) and (tree.rightNode is None):
             tree.blockEnd = True
         else:
             markNodeEnds(tree.rightNode)
@@ -121,16 +107,6 @@ X2 = np.append(X2, 10)
 X2 = np.append(X2, 0)
 X = np.c_[X1, X2]
 
-
-def find_node(tree: Node, list_of_results, height=0):
-
-    if (tree.blockEnd == True) and (tree.block == height) and (tree.data is not None):
-        return (tree.data, tree.cuts)
-
-    if tree.leftNode:
-        list_of_results.append(find_node(tree.leftNode, list_of_results, height=height))
-    if tree.rightNode:
-        list_of_results.append(find_node(tree.rightNode, list_of_results, height=height))
 
 def findNode(tree: Node, list_of_results):
 
