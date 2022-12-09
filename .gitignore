@@ -1,3 +1,7 @@
 .venv/*
 .venv
 McDiarmid/__pycache__/mcdiarmid.cpython-38.pyc
+requirements.txt
+my_profile.prof
+output.stats
+out.png
