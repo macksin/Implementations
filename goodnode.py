@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.base import BaseEstimator, TransformerMixin
 
 def checkDim(dim, data):
     if not dim:
@@ -78,18 +78,18 @@ class Node:
             return self.right.search(data)
 
 
-class AdaptivePartitioning:
+class AdaptivePartitioning(BaseEstimator, TransformerMixin):
 
     def __init__(self, k: int = 8):
         self.k = k
         self.node = None
 
-    def fit(self, X):
+    def fit(self, X, y=None):
         self.node = insert(X, k = self.k)
         self.node.labelLeafs()
         return self
 
-    def predict(self, X: np.ndarray):
+    def transform(self, X):
         labels = []
         for i in range(X.shape[0]):
             labels.append(self.node.search(X[i]))
@@ -102,8 +102,7 @@ import matplotlib.pyplot as plt
 X, y = make_blobs(n_samples=1000, centers=3, n_features=2, random_state=0)
 
 ap = AdaptivePartitioning(k = 250)
-ap.fit(X)
-labels = ap.predict(X)
+labels = ap.fit_transform(X)
 
 print(np.bincount(labels))
 
