@@ -5,3 +5,6 @@ requirements.txt
 my_profile.prof
 output.stats
 out.png
+AdaptivePartitioning/__pycache__/adaptive_partitioning.cpython-38.pyc
+
+*pyc
