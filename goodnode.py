@@ -1,5 +1,8 @@
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
+
 
 def checkDim(dim, data):
     if not dim:
@@ -9,7 +12,7 @@ def checkDim(dim, data):
     return dim
 
 
-def insert(data, dim = None, node = None, k = 8):
+def insert(data, dim=None, node=None, k=8):
 
     dim = checkDim(dim, data)
 
@@ -73,7 +76,7 @@ class Node:
 
         if data[self.dim] <= self.cuts[self.dim]:
             return self.left.search(data)
-        
+
         if data[self.dim] > self.cuts[self.dim]:
             return self.right.search(data)
 
@@ -85,7 +88,7 @@ class AdaptivePartitioning(BaseEstimator, TransformerMixin):
         self.node = None
 
     def fit(self, X, y=None):
-        self.node = insert(X, k = self.k)
+        self.node = insert(X, k=self.k)
         self.node.labelLeafs()
         return self
 
@@ -96,12 +99,10 @@ class AdaptivePartitioning(BaseEstimator, TransformerMixin):
         return labels
 
 
-from sklearn.datasets import make_blobs
-import matplotlib.pyplot as plt
+X, y = make_blobs(n_samples=1000, centers=4, cluster_std=0.35,
+                  n_features=2, random_state=0)
 
-X, y = make_blobs(n_samples=1000, centers=4, cluster_std=0.35, n_features=2, random_state=0)
-
-ap = AdaptivePartitioning(k = 200)
+ap = AdaptivePartitioning(k=200)
 labels = ap.fit_transform(X)
 
 print(np.bincount(labels))
