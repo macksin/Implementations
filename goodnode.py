@@ -49,11 +49,8 @@ class Node:
         self.data = data
         self.cut = cut
         self.dim = dim
-        self.__terminal = False
-        self.depth = None
         self.left = None
         self.right = None
-        self.father = None
         self.label = None
 
     def labelLeafs(self, label=0):
