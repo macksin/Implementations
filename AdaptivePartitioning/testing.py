@@ -73,7 +73,7 @@ def test_variable_usage(featureNumber):
                       cluster_std=0.35, n_features=4, random_state=0)
     est = AdaptivePartitioning(k=1)
     est.fit(X)
-    assert recursivecheck(est.node, featureNumber)
+    assert recursivecheck(est.node_, featureNumber)
 
 
 @pytest.mark.parametrize("niter", [2, 3, 4])
@@ -91,3 +91,17 @@ def test_niter_effect(niter):
     labels = est.fit_transform(X)
 
     assert np.unique(labels).shape[0] > np.unique(labels_less).shape[0]
+
+
+def test_accept_list():
+    X_ = [[-1, -1], [1, -1], [1, 1], [-1, 1],
+          [-2, -2], [2, -2], [2, 2], [-2, 2]]
+    X = np.array(X_)
+
+    est1 = AdaptivePartitioning(k=2)
+    labels1 = est1.fit_transform(X)
+
+    est2 = AdaptivePartitioning(k=2)
+    labels2 = est2.fit_transform(X_)
+
+    assert np.bincount(labels1).shape[0] == np.bincount(labels2).shape[0]

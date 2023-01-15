@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils.validation import check_array, check_is_fitted
 
 
 def checkDim(dim, data):
@@ -91,16 +92,20 @@ class AdaptivePartitioning(BaseEstimator, TransformerMixin):
 
     def __init__(self, k: int = 8, niter=None):
         self.k = k
-        self.node = None
         self.niter = niter
 
     def fit(self, X, y=None):
-        self.node = insert(X, k=self.k, niter=self.niter)
-        self.node.labelLeafs()
+        X = check_array(X, accept_sparse='csr')
+        self.node_ = insert(X, k=self.k, niter=self.niter)
+        self.node_.labelLeafs()
         return self
 
     def transform(self, X):
+        check_is_fitted(self, attributes="node_")
+
+        X = check_array(X, accept_sparse='csr')
+
         labels = []
         for i in range(X.shape[0]):
-            labels.append(self.node.search(X[i]))
+            labels.append(self.node_.search(X[i]))
         return labels
