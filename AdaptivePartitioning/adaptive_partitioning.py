@@ -10,7 +10,11 @@ def checkDim(dim, data):
     return dim
 
 
-def insert(data, dim=None, node=None, k=8):
+def insert(data, dim=None, node=None, k=8, niter=None, iter=None):
+
+    if not iter:
+        iter = 0
+
 
     dim = checkDim(dim, data)
 
@@ -18,11 +22,16 @@ def insert(data, dim=None, node=None, k=8):
         cuts = np.median(data, axis=0)
         if hasattr(node, 'father'):
             node.cuts = cuts
+            iter+=1
     else:
         cuts = node.father.cuts
 
     if node is None:
         node = Node(data, cuts, dim, None)
+
+    if niter and iter:
+        if niter <= iter:
+            return node
 
     dataLeft = data[data[:, dim] <= node.cuts[node.dim]]
     dataRight = data[data[:, dim] > node.cuts[node.dim]]
@@ -36,12 +45,12 @@ def insert(data, dim=None, node=None, k=8):
     dimL = checkDim(dim+1, dataLeft)
     if node.left is None:
         node.left = Node(dataLeft, cuts, dimL, node)
-        insert(dataLeft, dimL, node.left, k)
+        insert(dataLeft, dimL, node.left, k, niter, iter)
 
     dimR = checkDim(dim+1, dataRight)
     if node.right is None:
         node.right = Node(dataRight, cuts, dimR, node)
-        insert(dataRight, dimR, node.right, k)
+        insert(dataRight, dimR, node.right, k, niter, iter)
 
     return node
 
@@ -81,12 +90,13 @@ class Node:
 
 class AdaptivePartitioning(BaseEstimator, TransformerMixin):
 
-    def __init__(self, k: int = 8):
+    def __init__(self, k: int = 8, niter=None):
         self.k = k
         self.node = None
+        self.niter = niter
 
     def fit(self, X, y=None):
-        self.node = insert(X, k=self.k)
+        self.node = insert(X, k=self.k, niter=self.niter)
         self.node.labelLeafs()
         return self
 
