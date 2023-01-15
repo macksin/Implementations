@@ -15,14 +15,13 @@ def insert(data, dim=None, node=None, k=8, niter=None, iter=None):
     if not iter:
         iter = 0
 
-
     dim = checkDim(dim, data)
 
     if dim == 0:
         cuts = np.median(data, axis=0)
         if hasattr(node, 'father'):
             node.cuts = cuts
-            iter+=1
+            iter += 1
     else:
         cuts = node.father.cuts
 

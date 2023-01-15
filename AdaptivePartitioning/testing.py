@@ -90,5 +90,4 @@ def test_niter_effect(niter):
     est = AdaptivePartitioning(k=1, niter=niter)
     labels = est.fit_transform(X)
 
-
     assert np.unique(labels).shape[0] > np.unique(labels_less).shape[0]
