@@ -13,39 +13,43 @@ def test_basic_clustering():
     assert np.unique(labels).shape[0] == 4
 
 
-def test_klimit():
+@pytest.mark.parametrize("niter", [None, 1, 2, 3, 4])
+def test_klimit(niter):
     # Checks if four points give four clusters
     # given k = 2
     X = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1],
                  [-1, -1], [1, -1], [1, 1], [-1, 1]])
-    est = AdaptivePartitioning(k=2)
+    est = AdaptivePartitioning(k=2, niter=niter)
     labels = est.fit_transform(X)
     assert np.unique(labels).shape[0] == 4
 
 
-def test_same_labels():
+@pytest.mark.parametrize("niter", [None, 1, 2, 3, 4])
+def test_same_labels(niter):
     X = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1],
                   [-2, -2], [2, -2], [2, 2], [-2, 2]])
-    est = AdaptivePartitioning(k=2)
+    est = AdaptivePartitioning(k=2, niter=niter)
     est.fit(X)
     labels = est.transform(np.array([[-1, -1], [-2, -2]]))
     assert np.unique(labels).shape[0] == 1
 
 
-def test_different_labels():
+@pytest.mark.parametrize("niter", [None, 1, 2, 3, 4])
+def test_different_labels(niter):
     X = np.array([[-1, -1], [1, -1], [1, 1], [-1, 1],
                   [-2, -2], [2, -2], [2, 2], [-2, 2]])
-    est = AdaptivePartitioning(k=2)
+    est = AdaptivePartitioning(k=2, niter=niter)
     est.fit(X)
     labels = est.transform(np.array([[-1, -1], [2, 2]]))
     assert np.unique(labels).shape[0] == 2
 
 
-def test_k_min():
+@pytest.mark.parametrize("niter", [None, 1, 2, 3, 4])
+def test_k_min(niter):
     # Check if K really limits the data in each terminal node
     X, y = make_blobs(n_samples=1000, centers=4,
                       cluster_std=0.35, n_features=4, random_state=0)
-    est = AdaptivePartitioning(k=50)
+    est = AdaptivePartitioning(k=50, niter=niter)
     labels = est.fit_transform(X)
     assert np.bincount(labels).min() >= 50
 
@@ -69,5 +73,22 @@ def test_variable_usage(featureNumber):
                       cluster_std=0.35, n_features=4, random_state=0)
     est = AdaptivePartitioning(k=1)
     est.fit(X)
-    print(np.bincount(est.transform(X)).shape[0])
     assert recursivecheck(est.node, featureNumber)
+
+
+@pytest.mark.parametrize("niter", [2, 3, 4])
+def test_niter_effect(niter):
+    # Checks if the variables were used
+    X, y = make_blobs(n_samples=10000, centers=4,
+                      cluster_std=0.35, n_features=4, random_state=0)
+
+    niter_less = niter-1
+
+    est = AdaptivePartitioning(k=1, niter=niter_less)
+    labels_less = est.fit_transform(X)
+
+    est = AdaptivePartitioning(k=1, niter=niter)
+    labels = est.fit_transform(X)
+
+
+    assert np.unique(labels).shape[0] > np.unique(labels_less).shape[0]
